@@ -4,6 +4,7 @@ import {
   parseOutageFromImage,
   PARSER_VERSION,
 } from "../_shared/parser.ts";
+import { shouldSkipNonOutagePost } from "../_shared/post_filter.ts";
 import { parseRssFeed } from "../_shared/rss.ts";
 
 const RSS_FEED_URL = Deno.env.get("ISECO_RSS_FEED_URL") ?? "";
@@ -64,6 +65,7 @@ Deno.serve(async (req) => {
     const results = {
       scanned: items.length,
       new_posts: 0,
+      skipped_posts: 0,
       outages_inserted: 0,
       errors: [] as string[],
     };
@@ -72,6 +74,20 @@ Deno.serve(async (req) => {
       if (processedIds.has(item.sourcePostId)) continue;
 
       results.new_posts++;
+
+      const postFilter = shouldSkipNonOutagePost(item.caption);
+      if (postFilter.skip) {
+        results.skipped_posts++;
+        await supabase.from("processed_posts").upsert({
+          source_post_id: item.sourcePostId,
+          image_count: item.imageUrls.length,
+          status: "skipped",
+          error_message: postFilter.reason ?? "non_outage_post",
+          processed_at: new Date().toISOString(),
+        });
+        continue;
+      }
+
       let imageCount = 0;
       let hadError = false;
 

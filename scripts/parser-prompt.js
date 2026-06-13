@@ -54,6 +54,8 @@ ISECO posts Facebook images with a fixed poster template:
 
 Extract EVERY scheduled interruption row from the image. One image may contain multiple date/time rows.
 
+If the image is NOT an ISECO "Notice of Power Interruption" poster (e.g. holiday advisory, office closure, PR/celebration post, billing notice, job posting), return {"outages": []}.
+
 Rules:
 1. Return ONLY valid JSON matching the schema below. No markdown, no explanation.
 2. Use 24-hour time format HH:MM (e.g. "08:30", "17:00"). Convert "12:00nn" to "12:00", "05:00pm" to "17:00", "5:30 am" to "05:30".
