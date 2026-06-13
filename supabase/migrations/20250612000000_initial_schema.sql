@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS outages (
   areas JSONB NOT NULL DEFAULT '[]',
   areas_raw JSONB NOT NULL DEFAULT '[]',
   exclusions JSONB NOT NULL DEFAULT '[]',
-  is_district_wide BOOLEAN NOT NULL DEFAULT false,
+  district TEXT CHECK (district IS NULL OR district IN ('1st', '2nd')),
   purpose TEXT,
   source_post_id TEXT NOT NULL,
   image_index INT NOT NULL DEFAULT 0,

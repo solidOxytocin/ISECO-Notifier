@@ -1,46 +1,14 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { normalizeOutages } from './normalize-outage.js';
+import { SYSTEM_PROMPT } from './parser-prompt.js';
 import fs from 'fs';
 import path from 'path';
 
-export const PARSER_VERSION = '2.0.0-gemini-flash';
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
+export const PARSER_VERSION = '2.1.0-district';
+// 2.0-flash has limit:0 on free tier; use 2.5-flash-lite (free) or override via GEMINI_MODEL
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite';
 
-export const SYSTEM_PROMPT = `You are a data extraction assistant for Ilocos Sur Electric Cooperative (ISECO) power outage notices.
-
-ISECO posts Facebook images with a fixed poster template:
-- Red header: "NOTICE OF POWER INTERRUPTION"
-- Three columns: "Date and Time", "Areas Affected", "Purpose/s"
-- Footer with MCO assistance numbers (ignore these)
-
-Extract EVERY scheduled interruption row from the image. One image may contain multiple date/time rows.
-
-Rules:
-1. Return ONLY valid JSON matching the schema below. No markdown, no explanation.
-2. Use 24-hour time format HH:MM (e.g. "08:30", "17:00"). Convert "12:00nn" to "12:00", "05:00pm" to "17:00", "5:30 am" to "05:30".
-3. Dates as ISO YYYY-MM-DD. Infer year from caption if missing from image.
-4. For "Whole 1st District EXCEPT Puro, Caoayan" set is_district_wide: true and list exclusions separately.
-5. areas: list each affected location as a separate string. Include municipality context (e.g. "Baluarte, Vigan City").
-6. areas_raw: copy areas exactly as written in the image.
-7. purpose: the reason text from the Purpose/s column.
-8. confidence: "high", "medium", or "low" based on text clarity.
-9. If caption provides date range context, use it to resolve ambiguous dates.
-
-JSON schema:
-{
-  "outages": [
-    {
-      "outage_date": "YYYY-MM-DD",
-      "start_time": "HH:MM",
-      "end_time": "HH:MM",
-      "areas": ["string"],
-      "areas_raw": ["string"],
-      "exclusions": ["string"],
-      "is_district_wide": false,
-      "purpose": "string",
-      "confidence": "high"
-    }
-  ]
-}`;
+export { SYSTEM_PROMPT };
 
 function userPrompt(caption) {
   return caption
@@ -113,11 +81,12 @@ export async function parseOutageImage({
       lastRaw = result.response.text().trim();
       const parsed = parseJsonResponse(lastRaw);
       validateOutages(parsed);
+      const normalized = normalizeOutages(parsed);
 
       return {
         parser_version: PARSER_VERSION,
         model,
-        outages: parsed.outages,
+        outages: normalized.outages,
         raw_response: lastRaw,
       };
     } catch (err) {
@@ -152,8 +121,8 @@ function validateOutages(data) {
     if (!Array.isArray(o.areas)) o.areas = [];
     if (!Array.isArray(o.areas_raw)) o.areas_raw = o.areas;
     if (!Array.isArray(o.exclusions)) o.exclusions = [];
-    if (typeof o.is_district_wide !== 'boolean') o.is_district_wide = false;
     if (!o.confidence) o.confidence = 'medium';
+    if (o.district !== '1st' && o.district !== '2nd') o.district = null;
   }
 }
 
@@ -164,7 +133,11 @@ export function buildDedupKey({
   startTime,
   endTime,
   areas,
+  district = null,
+  exclusions = [],
 }) {
   const areasHash = [...(areas ?? [])].sort().join('|').toLowerCase();
-  return `${sourcePostId}:${imageIndex}:${outageDate}:${startTime}:${endTime}:${areasHash}`;
+  const exclHash = [...exclusions].sort().join('|').toLowerCase();
+  const districtPart = district ? `d:${district}` : '';
+  return `${sourcePostId}:${imageIndex}:${outageDate}:${startTime}:${endTime}:${districtPart}:${areasHash}:${exclHash}`;
 }

@@ -15,7 +15,7 @@ interface OutagePayload {
   areas: string[];
   purpose?: string;
   exclusions?: string[];
-  is_district_wide?: boolean;
+  district?: string | null;
   use_barangay_filter?: boolean;
 }
 
@@ -65,7 +65,7 @@ async function sendToTopic(title: string, body: string, data: Record<string, str
 }
 
 async function sendToFilteredDevices(
-  outage: OutagePayload & { exclusions?: string[]; is_district_wide?: boolean },
+  outage: OutagePayload,
   title: string,
   body: string,
   data: Record<string, string>,

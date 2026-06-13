@@ -113,6 +113,8 @@ Deno.serve(async (req) => {
               startTime: outage.start_time,
               endTime: outage.end_time,
               areas: outage.areas,
+              district: outage.district,
+              exclusions: outage.exclusions,
             });
 
             const { data: inserted, error: insertErr } = await supabase
@@ -121,10 +123,10 @@ Deno.serve(async (req) => {
                 outage_date: outage.outage_date,
                 start_time: outage.start_time,
                 end_time: outage.end_time,
+                district: outage.district,
                 areas: outage.areas,
                 areas_raw: outage.areas_raw,
                 exclusions: outage.exclusions,
-                is_district_wide: outage.is_district_wide,
                 purpose: outage.purpose,
                 source_post_id: item.sourcePostId,
                 image_index: imageIndex,

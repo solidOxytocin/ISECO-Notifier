@@ -61,6 +61,32 @@ for (const tc of cases) {
       }
     }
 
+    if (tc.expect_areas_exclude) {
+      const bad = result.outages.some((o) =>
+        tc.expect_areas_exclude.some((frag) =>
+          o.areas.some((a) => a.toLowerCase().includes(frag.toLowerCase()))
+        )
+      );
+      if (bad) {
+        throw new Error(
+          `Excluded area found in areas: ${JSON.stringify(tc.expect_areas_exclude)}`
+        );
+      }
+    }
+
+    if (tc.expect_areas_include) {
+      const ok = result.outages.some((o) =>
+        tc.expect_areas_include.every((frag) =>
+          o.areas.some((a) => a.toLowerCase().includes(frag.toLowerCase()))
+        )
+      );
+      if (!ok) {
+        throw new Error(
+          `Expected areas missing: ${JSON.stringify(tc.expect_areas_include)}`
+        );
+      }
+    }
+
     console.log(`PASS (${count} outage(s))`);
     passed++;
   } catch (err) {

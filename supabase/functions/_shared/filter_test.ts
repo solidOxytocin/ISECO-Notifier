@@ -1,44 +1,50 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { shouldNotifyUser } from "./filter.ts";
+import { getAffectedLocations, shouldNotifyUser } from "./filter.ts";
 
-Deno.test("notify all when no barangays set", () => {
-  assertEquals(
-    shouldNotifyUser(
-      { outage_date: "2026-06-15", start_time: "08:00", end_time: "17:00", areas: ["Vigan"] },
-      [],
-    ),
-    true,
-  );
+Deno.test("1st district: Vigan affected, Caoayan excluded", () => {
+  const outage = {
+    outage_date: "2026-06-15",
+    start_time: "05:30",
+    end_time: "13:30",
+    district: "1st" as const,
+    areas: ["Nagpanaoan, Santa"],
+    exclusions: ["Puro, Caoayan"],
+  };
+
+  const affected = getAffectedLocations(outage);
+  assertEquals(affected.includes("Vigan City"), true);
+  assertEquals(affected.includes("Caoayan"), false);
+  assertEquals(affected.some((a) => a.includes("Nagpanaoan")), true);
+
+  assertEquals(shouldNotifyUser(outage, ["Vigan City"]), true);
+  assertEquals(shouldNotifyUser(outage, ["Puro, Caoayan"]), false);
+  assertEquals(shouldNotifyUser(outage, ["Nagpanaoan, Santa"]), true);
 });
 
-Deno.test("district-wide excludes barangay", () => {
-  assertEquals(
-    shouldNotifyUser(
-      {
-        outage_date: "2026-06-15",
-        start_time: "05:30",
-        end_time: "13:30",
-        areas: ["Whole 1st District"],
-        exclusions: ["Puro, Caoayan"],
-        is_district_wide: true,
-      },
-      ["Puro, Caoayan"],
-    ),
-    false,
-  );
+Deno.test("2nd district only affects 2nd municipalities", () => {
+  const outage = {
+    outage_date: "2026-06-15",
+    start_time: "08:00",
+    end_time: "17:00",
+    district: "2nd" as const,
+    areas: [],
+    exclusions: [],
+  };
+
+  assertEquals(shouldNotifyUser(outage, ["Candon City"]), true);
+  assertEquals(shouldNotifyUser(outage, ["Vigan City"]), false);
 });
 
-Deno.test("matches specific barangay", () => {
-  assertEquals(
-    shouldNotifyUser(
-      {
-        outage_date: "2026-06-17",
-        start_time: "08:30",
-        end_time: "17:00",
-        areas: ["Baluarte, Vigan City"],
-      },
-      ["Baluarte"],
-    ),
-    true,
-  );
+Deno.test("specific areas only when district is null", () => {
+  const outage = {
+    outage_date: "2026-06-17",
+    start_time: "08:30",
+    end_time: "17:00",
+    district: null,
+    areas: ["Baluarte, Vigan City"],
+    exclusions: [],
+  };
+
+  assertEquals(shouldNotifyUser(outage, ["Baluarte"]), true);
+  assertEquals(shouldNotifyUser(outage, ["Salindeg, Vigan City"]), false);
 });

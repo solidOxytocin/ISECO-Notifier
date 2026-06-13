@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../cubit/outages_cubit.dart';
+import '../data/ilocos_sur_districts.dart';
 import '../models/outage.dart';
 import 'settings_screen.dart';
 
@@ -116,23 +117,33 @@ class _OutageCard extends StatelessWidget {
               '${_formatTime(outage.startTime)} – ${_formatTime(outage.endTime)}',
               style: theme.textTheme.bodyLarge,
             ),
-            if (outage.isDistrictWide) ...[
+            if (outage.district != null) ...[
               const SizedBox(height: 8),
               Text(
-                'District-wide outage',
+                '${districtLabel(outage.district!)} (${outage.affectedLocations.length} locations)',
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: theme.colorScheme.error,
                 ),
               ),
             ],
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: outage.areas
-                  .map((a) => Chip(label: Text(a), visualDensity: VisualDensity.compact))
-                  .toList(),
-            ),
+            if (outage.areas.isNotEmpty)
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: outage.areas
+                    .map((a) => Chip(
+                          label: Text(a),
+                          visualDensity: VisualDensity.compact,
+                        ))
+                    .toList(),
+              ),
+            if (outage.district != null && outage.areas.isEmpty)
+              Text(
+                'All ${districtLabel(outage.district!)} municipalities'
+                '${outage.exclusions.isNotEmpty ? ' (see exclusions)' : ''}',
+                style: theme.textTheme.bodyMedium,
+              ),
             if (outage.exclusions.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(

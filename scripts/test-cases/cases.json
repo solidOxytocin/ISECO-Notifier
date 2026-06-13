@@ -6,8 +6,10 @@
     "expect_min_outages": 1,
     "expect_fields": {
       "outage_date": "2026-06-15",
-      "is_district_wide": true
-    }
+      "district": "1st"
+    },
+    "expect_areas_exclude": ["Puro", "Caoayan"],
+    "expect_areas_include": ["Nagpanaoan"]
   },
   {
     "name": "Vigan week carousel (screenshot)",

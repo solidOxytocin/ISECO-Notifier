@@ -6,7 +6,7 @@
   "scripts": {
     "parse": "node parse-outage.js",
     "test": "node run-test-cases.js",
-    "test:unit": "node test/dedup.test.js && node test/rss.test.js"
+    "test:unit": "node test/dedup.test.js && node test/rss.test.js && node test/normalize.test.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",

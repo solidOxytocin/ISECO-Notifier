@@ -160,7 +160,7 @@ curl -X POST https://YOUR_PROJECT.supabase.co/functions/v1/send_outage_notificat
 Each **outage row** represents one schedulable interruption:
 
 - `outage_date`, `start_time`, `end_time`
-- `areas[]`, `exclusions[]`, `is_district_wide`
+- `district` (`"1st"` | `"2nd"` | null), `areas[]`, `exclusions[]`
 - `dedup_key` = `postId:imageIndex:date:start:end:areasHash`
 
 ## Troubleshooting

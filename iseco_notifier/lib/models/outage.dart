@@ -1,12 +1,14 @@
+import '../data/ilocos_sur_districts.dart';
+
 class Outage {
   final String id;
   final DateTime createdAt;
   final DateTime outageDate;
   final String startTime;
   final String endTime;
+  final String? district;
   final List<String> areas;
   final List<String> exclusions;
-  final bool isDistrictWide;
   final String? purpose;
   final String confidence;
 
@@ -16,9 +18,9 @@ class Outage {
     required this.outageDate,
     required this.startTime,
     required this.endTime,
+    this.district,
     required this.areas,
     this.exclusions = const [],
-    this.isDistrictWide = false,
     this.purpose,
     this.confidence = 'medium',
   });
@@ -30,9 +32,9 @@ class Outage {
       outageDate: DateTime.parse(json['outage_date'] as String),
       startTime: _formatTime(json['start_time']),
       endTime: _formatTime(json['end_time']),
+      district: json['district'] as String?,
       areas: List<String>.from(json['areas'] as List? ?? []),
       exclusions: List<String>.from(json['exclusions'] as List? ?? []),
-      isDistrictWide: json['is_district_wide'] as bool? ?? false,
       purpose: json['purpose'] as String?,
       confidence: json['confidence'] as String? ?? 'medium',
     );
@@ -40,29 +42,24 @@ class Outage {
 
   static String _formatTime(dynamic value) {
     if (value is String) {
-      // Postgres TIME may come as "08:30:00"
       return value.length >= 5 ? value.substring(0, 5) : value;
     }
     return value.toString();
   }
 
-  bool affectsBarangay(String barangay) {
-    final normalized = barangay.toLowerCase().trim();
-    if (normalized.isEmpty) return false;
-
-    if (isDistrictWide) {
-      final excluded = exclusions.any(
-        (e) =>
-            e.toLowerCase().contains(normalized) ||
-            normalized.contains(e.toLowerCase()),
+  /// Expanded list of all affected municipalities/barangays.
+  List<String> get affectedLocations => getAffectedLocations(
+        district: district,
+        areas: areas,
+        exclusions: exclusions,
       );
-      return !excluded;
-    }
 
-    return areas.any(
-      (a) =>
-          a.toLowerCase().contains(normalized) ||
-          normalized.contains(a.toLowerCase().split(',').first.trim()),
+  bool affectsBarangay(String barangay) {
+    return locationMatchesOutage(
+      barangay,
+      district: district,
+      areas: areas,
+      exclusions: exclusions,
     );
   }
 }
