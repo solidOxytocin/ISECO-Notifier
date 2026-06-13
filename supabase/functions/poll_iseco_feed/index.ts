@@ -113,6 +113,7 @@ Deno.serve(async (req) => {
               startTime: outage.start_time,
               endTime: outage.end_time,
               areas: outage.areas,
+              partial_areas: outage.partial_areas,
               district: outage.district,
               exclusions: outage.exclusions,
             });
@@ -125,6 +126,7 @@ Deno.serve(async (req) => {
                 end_time: outage.end_time,
                 district: outage.district,
                 areas: outage.areas,
+                partial_areas: outage.partial_areas,
                 areas_raw: outage.areas_raw,
                 exclusions: outage.exclusions,
                 purpose: outage.purpose,

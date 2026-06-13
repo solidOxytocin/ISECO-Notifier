@@ -13,6 +13,7 @@ interface OutagePayload {
   start_time: string;
   end_time: string;
   areas: string[];
+  partial_areas?: string[];
   purpose?: string;
   exclusions?: string[];
   district?: string | null;
@@ -128,10 +129,12 @@ Deno.serve(async (req) => {
     const outage: OutagePayload = await req.json();
 
     const areasPreview = (outage.areas ?? []).slice(0, 2).join(", ");
+    const partialPreview = (outage.partial_areas ?? []).slice(0, 1).join(", ");
     const more = (outage.areas?.length ?? 0) > 2 ? "..." : "";
+    const partialNote = partialPreview ? " (some parts)" : "";
 
     const title = "ISECO Power Interruption";
-    const body = `${formatDate(outage.outage_date)} ${formatTime(outage.start_time)}–${formatTime(outage.end_time)} — ${areasPreview}${more}`;
+    const body = `${formatDate(outage.outage_date)} ${formatTime(outage.start_time)}–${formatTime(outage.end_time)} — ${areasPreview}${more}${partialNote}`;
 
     const data = {
       outage_id: outage.outage_id ?? "",

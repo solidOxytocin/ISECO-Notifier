@@ -4,7 +4,7 @@ import { SYSTEM_PROMPT } from './parser-prompt.js';
 import fs from 'fs';
 import path from 'path';
 
-export const PARSER_VERSION = '2.1.0-district';
+export const PARSER_VERSION = '2.2.0-partial';
 // 2.0-flash has limit:0 on free tier; use 2.5-flash-lite (free) or override via GEMINI_MODEL
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite';
 
@@ -119,6 +119,7 @@ function validateOutages(data) {
       throw new Error(`Outage missing required date/time fields: ${JSON.stringify(o)}`);
     }
     if (!Array.isArray(o.areas)) o.areas = [];
+    if (!Array.isArray(o.partial_areas)) o.partial_areas = [];
     if (!Array.isArray(o.areas_raw)) o.areas_raw = o.areas;
     if (!Array.isArray(o.exclusions)) o.exclusions = [];
     if (!o.confidence) o.confidence = 'medium';
@@ -133,11 +134,13 @@ export function buildDedupKey({
   startTime,
   endTime,
   areas,
+  partial_areas = [],
   district = null,
   exclusions = [],
 }) {
   const areasHash = [...(areas ?? [])].sort().join('|').toLowerCase();
+  const partialHash = [...partial_areas].sort().join('|').toLowerCase();
   const exclHash = [...exclusions].sort().join('|').toLowerCase();
   const districtPart = district ? `d:${district}` : '';
-  return `${sourcePostId}:${imageIndex}:${outageDate}:${startTime}:${endTime}:${districtPart}:${areasHash}:${exclHash}`;
+  return `${sourcePostId}:${imageIndex}:${outageDate}:${startTime}:${endTime}:${districtPart}:${areasHash}:p:${partialHash}:${exclHash}`;
 }

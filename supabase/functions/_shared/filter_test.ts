@@ -48,3 +48,19 @@ Deno.test("specific areas only when district is null", () => {
   assertEquals(shouldNotifyUser(outage, ["Baluarte"]), true);
   assertEquals(shouldNotifyUser(outage, ["Salindeg, Vigan City"]), false);
 });
+
+Deno.test("partial areas notify watched barangays", () => {
+  const outage = {
+    outage_date: "2026-06-18",
+    start_time: "08:00",
+    end_time: "17:00",
+    district: null,
+    areas: ["Darapidap, Candon City"],
+    partial_areas: ["San Jose, Candon City"],
+    exclusions: [],
+  };
+
+  assertEquals(shouldNotifyUser(outage, ["San Jose, Candon City"]), true);
+  assertEquals(shouldNotifyUser(outage, ["Darapidap, Candon City"]), true);
+  assertEquals(shouldNotifyUser(outage, ["Salindeg, Candon City"]), false);
+});

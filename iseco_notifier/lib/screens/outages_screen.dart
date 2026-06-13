@@ -57,9 +57,15 @@ class OutagesScreen extends StatelessWidget {
                           final outage = filteredOutages[index];
                           final affectsYou = watchedBarangays.isNotEmpty &&
                               watchedBarangays.any(outage.affectsBarangay);
+                          final partialOnly = watchedBarangays.isNotEmpty &&
+                              affectsYou &&
+                              watchedBarangays.every(
+                                (w) => outage.affectsBarangayPartialOnly(w),
+                              );
                           return _OutageCard(
                             outage: outage,
                             affectsYou: affectsYou,
+                            partialOnly: partialOnly,
                           );
                         },
                       ),
@@ -72,10 +78,15 @@ class OutagesScreen extends StatelessWidget {
 }
 
 class _OutageCard extends StatelessWidget {
-  const _OutageCard({required this.outage, this.affectsYou = false});
+  const _OutageCard({
+    required this.outage,
+    this.affectsYou = false,
+    this.partialOnly = false,
+  });
 
   final Outage outage;
   final bool affectsYou;
+  final bool partialOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -102,10 +113,14 @@ class _OutageCard extends StatelessWidget {
                 ),
                 if (affectsYou)
                   Chip(
-                    label: const Text('Affects you'),
-                    backgroundColor: theme.colorScheme.errorContainer,
+                    label: Text(partialOnly ? 'Some parts' : 'Affects you'),
+                    backgroundColor: partialOnly
+                        ? theme.colorScheme.tertiaryContainer
+                        : theme.colorScheme.errorContainer,
                     labelStyle: TextStyle(
-                      color: theme.colorScheme.onErrorContainer,
+                      color: partialOnly
+                          ? theme.colorScheme.onTertiaryContainer
+                          : theme.colorScheme.onErrorContainer,
                       fontSize: 12,
                     ),
                     visualDensity: VisualDensity.compact,
@@ -127,7 +142,12 @@ class _OutageCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 12),
-            if (outage.areas.isNotEmpty)
+            if (outage.areas.isNotEmpty) ...[
+              if (outage.hasPartialAreas)
+                Text(
+                  'Full coverage',
+                  style: theme.textTheme.labelMedium,
+                ),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
@@ -138,6 +158,35 @@ class _OutageCard extends StatelessWidget {
                         ))
                     .toList(),
               ),
+            ],
+            if (outage.partialAreas.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Some parts only',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.tertiary,
+                ),
+              ),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: outage.partialAreas
+                    .map((a) => Chip(
+                          label: Text(a),
+                          backgroundColor: theme.colorScheme.tertiaryContainer
+                              .withValues(alpha: 0.5),
+                          visualDensity: VisualDensity.compact,
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'ISECO may only cut power in part of these barangays.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
             if (outage.district != null && outage.areas.isEmpty)
               Text(
                 'All ${districtLabel(outage.district!)} municipalities'

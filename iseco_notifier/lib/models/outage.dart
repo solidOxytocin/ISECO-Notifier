@@ -8,6 +8,7 @@ class Outage {
   final String endTime;
   final String? district;
   final List<String> areas;
+  final List<String> partialAreas;
   final List<String> exclusions;
   final String? purpose;
   final String confidence;
@@ -20,6 +21,7 @@ class Outage {
     required this.endTime,
     this.district,
     required this.areas,
+    this.partialAreas = const [],
     this.exclusions = const [],
     this.purpose,
     this.confidence = 'medium',
@@ -34,6 +36,7 @@ class Outage {
       endTime: _formatTime(json['end_time']),
       district: json['district'] as String?,
       areas: List<String>.from(json['areas'] as List? ?? []),
+      partialAreas: List<String>.from(json['partial_areas'] as List? ?? []),
       exclusions: List<String>.from(json['exclusions'] as List? ?? []),
       purpose: json['purpose'] as String?,
       confidence: json['confidence'] as String? ?? 'medium',
@@ -47,10 +50,13 @@ class Outage {
     return value.toString();
   }
 
+  bool get hasPartialAreas => partialAreas.isNotEmpty;
+
   /// Expanded list of all affected municipalities/barangays.
   List<String> get affectedLocations => getAffectedLocations(
         district: district,
         areas: areas,
+        partialAreas: partialAreas,
         exclusions: exclusions,
       );
 
@@ -59,6 +65,26 @@ class Outage {
       barangay,
       district: district,
       areas: areas,
+      partialAreas: partialAreas,
+      exclusions: exclusions,
+    );
+  }
+
+  bool affectsBarangayFull(String barangay) {
+    return locationMatchesOutageFull(
+      barangay,
+      district: district,
+      areas: areas,
+      exclusions: exclusions,
+    );
+  }
+
+  bool affectsBarangayPartialOnly(String barangay) {
+    return locationMatchesOutagePartialOnly(
+      barangay,
+      district: district,
+      areas: areas,
+      partialAreas: partialAreas,
       exclusions: exclusions,
     );
   }

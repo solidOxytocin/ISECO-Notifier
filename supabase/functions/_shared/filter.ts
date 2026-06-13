@@ -10,6 +10,7 @@ export interface OutageForFilter {
   end_time: string;
   district?: DistrictId | null;
   areas: string[];
+  partial_areas?: string[];
   exclusions?: string[];
 }
 
@@ -27,10 +28,14 @@ export function shouldNotifyUser(
   const affected = getAffectedLocations({
     district: outage.district,
     areas: outage.areas ?? [],
+    partial_areas: outage.partial_areas ?? [],
     exclusions: outage.exclusions ?? [],
   });
 
-  return userBarangays.some((userLoc) =>
-    affected.some((a) => locationsMatch(a, userLoc))
-  );
+  return userBarangays.some((userLoc) => {
+    if ((outage.exclusions ?? []).some((ex) => locationsMatch(ex, userLoc))) {
+      return false;
+    }
+    return affected.some((a) => locationsMatch(a, userLoc));
+  });
 }

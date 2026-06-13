@@ -90,6 +90,7 @@ bool municipalityIsExcluded(String municipality, List<String> exclusions) {
 List<String> getAffectedLocations({
   String? district,
   List<String> areas = const [],
+  List<String> partialAreas = const [],
   List<String> exclusions = const [],
 }) {
   final locations = <String>{};
@@ -102,7 +103,7 @@ List<String> getAffectedLocations({
     }
   }
 
-  for (final area in areas) {
+  for (final area in [...areas, ...partialAreas]) {
     if (!RegExp(r'whole.*district', caseSensitive: false).hasMatch(area)) {
       locations.add(area);
     }
@@ -115,16 +116,65 @@ bool locationMatchesOutage(
   String userLocation, {
   String? district,
   List<String> areas = const [],
+  List<String> partialAreas = const [],
   List<String> exclusions = const [],
 }) {
   final normalized = _normalize(userLocation);
   if (normalized.isEmpty) return false;
 
+  if (exclusions.any((ex) => locationsMatch(ex, userLocation))) {
+    return false;
+  }
+
   final affected = getAffectedLocations(
     district: district,
     areas: areas,
+    partialAreas: partialAreas,
     exclusions: exclusions,
   );
 
   return affected.any((a) => locationsMatch(a, userLocation));
+}
+
+bool locationMatchesOutageFull(
+  String userLocation, {
+  String? district,
+  List<String> areas = const [],
+  List<String> exclusions = const [],
+}) {
+  return locationMatchesOutage(
+    userLocation,
+    district: district,
+    areas: areas,
+    partialAreas: const [],
+    exclusions: exclusions,
+  );
+}
+
+bool locationMatchesOutagePartialOnly(
+  String userLocation, {
+  String? district,
+  List<String> areas = const [],
+  List<String> partialAreas = const [],
+  List<String> exclusions = const [],
+}) {
+  if (!locationMatchesOutage(
+    userLocation,
+    district: district,
+    areas: areas,
+    partialAreas: partialAreas,
+    exclusions: exclusions,
+  )) {
+    return false;
+  }
+  return !locationMatchesOutageFull(
+    userLocation,
+    district: district,
+    areas: areas,
+    exclusions: exclusions,
+  );
+}
+
+bool isLocationExcluded(String userLocation, List<String> exclusions) {
+  return exclusions.any((ex) => locationsMatch(ex, userLocation));
 }

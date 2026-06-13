@@ -1,7 +1,7 @@
 import { normalizeOutages } from "./normalize.ts";
 import type { DistrictId } from "./ilocos-sur-districts.ts";
 
-export const PARSER_VERSION = "2.1.0-district";
+export const PARSER_VERSION = "2.2.0-partial";
 // 2.0-flash has limit:0 on free tier; use 2.5-flash-lite (free) or override via GEMINI_MODEL
 export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
 
@@ -23,10 +23,15 @@ Rules:
    - 2nd District: Candon City, Alilem, Banayoyo, Burgos, Cervantes, Galimuyod, Gregorio del Pilar, Lidlidda, Nagbukel, Narvacan, Quirino, Salcedo, San Emilio, San Esteban, Santa, Santa Cruz, Santa Lucia, Santa Maria, Santiago, Sigay, Sugpon, Suyo, Tagudin
    - "Whole 1st District EXCEPT Puro, Caoayan" → district: "1st", exclusions: ["Puro, Caoayan"], areas: [] (or additional specific bullets only)
    - "Whole 2nd District" → district: "2nd"
-   - exclusions: ONLY EXCEPT locations — NEVER in areas
-   - areas: ONLY specific barangays/municipalities listed as separate bullets (e.g. "Nagpanaoan, Santa") — NOT the district label
-   - areas_raw: copy each bullet exactly as written (including full EXCEPT line)
-5. For barangay-only outages (no whole district): district: null, areas: list each location (e.g. "Baluarte, Vigan City").
+   - "Whole Area of Vigan" / "Whole Area of Vigan City" → district: null, areas: ["Vigan City"] (municipality-wide, not a district)
+   - exclusions: ONLY EXCEPT locations — NEVER in areas. Always "Barangay, Municipality" (e.g. "Puerto, Sto. Domingo")
+   - areas: include municipality (e.g. "SIVED to CALAY-AB, Sto. Domingo"). Strip (except …) from areas
+   - partial_areas: ONLY "Some parts of:" locations — qualify with municipality. NEVER in areas
+   - areas_raw: copy each bullet exactly as written (including full EXCEPT line and "Some parts of:" lines)
+5. For barangay-only outages (no whole district): district: null.
+   - "Barangays of VIGAN CITY" is a HEADER — do NOT put it in areas. Only list actual barangays.
+   - Always qualify barangays: "Baluarte, Vigan City" not bare "Baluarte".
+   - Multiple time slots same day = separate outage rows.
 6. purpose: the reason text from the Purpose/s column.
 7. confidence: "high", "medium", or "low" based on text clarity.
 8. If caption provides date range context, use it to resolve ambiguous dates.
@@ -37,6 +42,28 @@ Example — Whole 1st District EXCEPT + specific area:
   exclusions: ["Puro, Caoayan"]
   areas_raw: ["Whole 1st District of Ilocos Sur EXCEPT Puro, Caoayan", "Nagpanaoan, Santa"]
 
+Example — inline (except) within a municipality:
+  district: null
+  areas: ["SIVED to CALAY-AB, Sto. Domingo"]
+  exclusions: ["Puerto, Sto. Domingo"]
+  areas_raw: ["SIVED to CALAY-AB (except Puerto), Sto. Domingo"]
+
+Example — whole municipality (not whole district):
+  district: null
+  areas: ["Vigan City"]
+  exclusions: []
+  areas_raw: ["Whole Area of Vigan"]
+
+Example — full areas + some parts (same row):
+  district: null
+  areas: ["Darapidap, Candon City", "Caterman, Candon City"]
+  partial_areas: ["San Jose, Candon City", "San Agustin (way to Darapidap), Candon City"]
+  exclusions: []
+  areas_raw: [
+    "Darapidap, Caterman, Tamurong 1st & 2nd, Candon City",
+    "Some parts of: San Jose, San Juan, San Agustin (way to Darapidap), Candon City"
+  ]
+
 JSON schema:
 {
   "outages": [
@@ -46,6 +73,7 @@ JSON schema:
       "end_time": "HH:MM",
       "district": null,
       "areas": ["string"],
+      "partial_areas": ["string"],
       "areas_raw": ["string"],
       "exclusions": ["string"],
       "purpose": "string",
@@ -60,6 +88,7 @@ export interface ParsedOutage {
   end_time: string;
   district: DistrictId | null;
   areas: string[];
+  partial_areas: string[];
   areas_raw: string[];
   exclusions: string[];
   purpose: string;
@@ -73,13 +102,15 @@ export function buildDedupKey(params: {
   startTime: string;
   endTime: string;
   areas: string[];
+  partial_areas?: string[];
   district?: DistrictId | null;
   exclusions?: string[];
 }): string {
   const areasHash = [...params.areas].sort().join("|").toLowerCase();
+  const partialHash = [...(params.partial_areas ?? [])].sort().join("|").toLowerCase();
   const exclHash = [...(params.exclusions ?? [])].sort().join("|").toLowerCase();
   const districtPart = params.district ? `d:${params.district}` : "";
-  return `${params.sourcePostId}:${params.imageIndex}:${params.outageDate}:${params.startTime}:${params.endTime}:${districtPart}:${areasHash}:${exclHash}`;
+  return `${params.sourcePostId}:${params.imageIndex}:${params.outageDate}:${params.startTime}:${params.endTime}:${districtPart}:${areasHash}:p:${partialHash}:${exclHash}`;
 }
 
 function userPrompt(caption: string): string {
@@ -105,6 +136,7 @@ function validateOutages(data: { outages: ParsedOutage[] }) {
       throw new Error(`Outage missing required date/time: ${JSON.stringify(o)}`);
     }
     o.areas = o.areas ?? [];
+    o.partial_areas = o.partial_areas ?? [];
     o.areas_raw = o.areas_raw ?? o.areas;
     o.exclusions = o.exclusions ?? [];
     o.district = o.district === "1st" || o.district === "2nd" ? o.district : null;
