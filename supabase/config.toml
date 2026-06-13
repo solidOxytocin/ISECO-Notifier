@@ -1,0 +1,14 @@
+[project]
+id = "iseco-notifier"
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
+
+[functions.poll_iseco_feed]
+verify_jwt = false
+
+[functions.send_outage_notification]
+verify_jwt = false

@@ -1,0 +1,25 @@
+/// Common Ilocos Sur barangays/municipalities for user preference selection.
+/// Expand this list over time; Phase 5 filtering uses substring matching.
+const List<String> ilocosSurLocations = [
+  'Vigan City',
+  'Candon City',
+  'Santa',
+  'Caoayan',
+  'Santa Catalina',
+  'San Vicente',
+  'Bantay',
+  'San Ildefonso',
+  'Santo Domingo',
+  'Magsingal',
+  'Cabugao',
+  'Narvacan',
+  'Santa Cruz',
+  'Tagudin',
+  'Baluarte, Vigan City',
+  'Salindeg, Vigan City',
+  'Nagpanaoan, Santa',
+  'Puro, Caoayan',
+  'Padu Chico, Santo Domingo',
+  'Padu Grande, Santo Domingo',
+  'Binalayangan, Santo Domingo',
+];

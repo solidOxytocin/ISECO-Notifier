@@ -1,0 +1,15 @@
+{
+  "name": "iseco-parser-scripts",
+  "version": "2.0.0",
+  "description": "Phase 1: Validate Gemini Flash parsing of ISECO outage images",
+  "type": "module",
+  "scripts": {
+    "parse": "node parse-outage.js",
+    "test": "node run-test-cases.js",
+    "test:unit": "node test/dedup.test.js && node test/rss.test.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "dotenv": "^16.4.7"
+  }
+}

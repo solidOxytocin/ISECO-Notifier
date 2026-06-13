@@ -1,0 +1,19 @@
+[
+  {
+    "name": "NGCP district-wide outage",
+    "image": "../samples/ngcp-district-outage.png",
+    "caption": "NGCP RESCHEDULED POWER INTERRUPTION",
+    "expect_min_outages": 1,
+    "expect_fields": {
+      "outage_date": "2026-06-15",
+      "is_district_wide": true
+    }
+  },
+  {
+    "name": "Vigan week carousel (screenshot)",
+    "image": "../samples/vigan-week-carousel.png",
+    "caption": "ISECO VIGAN Power Update\nScheduled Power Interruption.\nJune 15-19, 2026\nFor your information, Ka-MCO.",
+    "expect_min_outages": 1,
+    "skip_if_no_api_key": true
+  }
+]
