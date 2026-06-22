@@ -12,12 +12,24 @@ class SupabaseService {
         .from('outages')
         .select()
         .gte('outage_date', today)
+        .order('outage_type')
         .order('outage_date')
         .order('start_time');
 
-    return (data as List)
+    final outages = (data as List)
         .map((row) => Outage.fromJson(row as Map<String, dynamic>))
         .toList();
+
+    outages.sort((a, b) {
+      if (a.isEmergency != b.isEmergency) {
+        return a.isEmergency ? -1 : 1;
+      }
+      final dateCmp = a.outageDate.compareTo(b.outageDate);
+      if (dateCmp != 0) return dateCmp;
+      return a.startTime.compareTo(b.startTime);
+    });
+
+    return outages;
   }
 
   Future<void> registerDevice({

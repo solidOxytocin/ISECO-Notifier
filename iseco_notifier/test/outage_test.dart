@@ -114,5 +114,22 @@ void main() {
       expect(outage.affectsBarangayPartialOnly('Darapidap, Candon City'), false);
       expect(outage.hasPartialAreas, true);
     });
+
+    test('emergency outage has no end time', () {
+      final outage = Outage(
+        id: '8',
+        createdAt: DateTime.now(),
+        outageType: OutageType.emergency,
+        outageDate: DateTime(2026, 6, 10),
+        startTime: '16:59',
+        endTime: null,
+        areas: ['Amianance, Vigan City'],
+        purpose: 'Cut off Jumper at Liberation Boulevard.',
+      );
+
+      expect(outage.isEmergency, true);
+      expect(outage.endTime, isNull);
+      expect(outage.affectsBarangay('Amianance, Vigan City'), true);
+    });
   });
 }

@@ -13,7 +13,7 @@
 
 - [ ] Create Firebase project linked to Android app `com.iseco.iseco_notifier`
 - [ ] Download `google-services.json` → `iseco_notifier/android/app/`
-- [ ] Enable Cloud Messaging; copy legacy server key to `FCM_SERVER_KEY`
+- [ ] Enable Cloud Messaging; generate a service-account key → set `FIREBASE_SERVICE_ACCOUNT`
 - [ ] Test topic message to `iseco_outages`
 
 ## Flutter release build
@@ -28,8 +28,17 @@ flutter build apk --release
 - [ ] `.env` bundled via assets (anon key only — never service role key)
 - [ ] Disclaimer screen shown on first launch
 
-## rss.app feed
+## Feed source (Apify — preferred)
 
+- [ ] Create an [Apify](https://console.apify.com/) account and copy an API token (Settings → API tokens)
+- [ ] Set `APIFY_TOKEN` and `ISECO_FB_PAGE_URL` secrets
+- [ ] Run `supabase functions invoke poll_iseco_feed` and confirm `"source": "apify"` in the response
+- [ ] Verify carousel posts return multiple `imageUrls` (check `processed_posts.image_count`)
+- [ ] (Optional) tune `APIFY_RESULTS_LIMIT` / `APIFY_ACTOR_ID`
+
+### Fallback: rss.app / FetchRSS
+
+- [ ] Only used when `APIFY_TOKEN` is empty
 - [ ] Create feed for [https://www.facebook.com/ISECO.Official](https://www.facebook.com/ISECO.Official)
 - [ ] Verify feed includes image enclosures for carousel posts
 - [ ] Copy feed URL to `ISECO_RSS_FEED_URL`

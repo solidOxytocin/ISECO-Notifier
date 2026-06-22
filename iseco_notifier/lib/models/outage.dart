@@ -1,11 +1,14 @@
 import '../data/ilocos_sur_districts.dart';
 
+enum OutageType { scheduled, emergency }
+
 class Outage {
   final String id;
   final DateTime createdAt;
+  final OutageType outageType;
   final DateTime outageDate;
   final String startTime;
-  final String endTime;
+  final String? endTime;
   final String? district;
   final List<String> areas;
   final List<String> partialAreas;
@@ -16,9 +19,10 @@ class Outage {
   const Outage({
     required this.id,
     required this.createdAt,
+    this.outageType = OutageType.scheduled,
     required this.outageDate,
     required this.startTime,
-    required this.endTime,
+    this.endTime,
     this.district,
     required this.areas,
     this.partialAreas = const [],
@@ -27,13 +31,16 @@ class Outage {
     this.confidence = 'medium',
   });
 
+  bool get isEmergency => outageType == OutageType.emergency;
+
   factory Outage.fromJson(Map<String, dynamic> json) {
     return Outage(
       id: json['id'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
+      outageType: _parseOutageType(json['outage_type'] as String?),
       outageDate: DateTime.parse(json['outage_date'] as String),
       startTime: _formatTime(json['start_time']),
-      endTime: _formatTime(json['end_time']),
+      endTime: json['end_time'] != null ? _formatTime(json['end_time']) : null,
       district: json['district'] as String?,
       areas: List<String>.from(json['areas'] as List? ?? []),
       partialAreas: List<String>.from(json['partial_areas'] as List? ?? []),
@@ -41,6 +48,10 @@ class Outage {
       purpose: json['purpose'] as String?,
       confidence: json['confidence'] as String? ?? 'medium',
     );
+  }
+
+  static OutageType _parseOutageType(String? value) {
+    return value == 'emergency' ? OutageType.emergency : OutageType.scheduled;
   }
 
   static String _formatTime(dynamic value) {

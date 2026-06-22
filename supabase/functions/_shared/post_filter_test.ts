@@ -35,6 +35,13 @@ Deno.test("does not skip empty captions", () => {
   assertEquals(shouldSkipNonOutagePost("   ").skip, false);
 });
 
+Deno.test("does not skip emergency power interruption captions", () => {
+  const result = shouldSkipNonOutagePost(
+    "ISECO Vigan Power Advisory\nEmergency Power Interruption\nJune 10, 2026\nAs of 4:59 Pm",
+  );
+  assertEquals(result.skip, false);
+});
+
 Deno.test("outage signal overrides billing keywords in same caption", () => {
   const result = shouldSkipNonOutagePost(
     "Scheduled Power Interruption — bill payments may be delayed at affected offices.",

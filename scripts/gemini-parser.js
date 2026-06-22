@@ -4,7 +4,7 @@ import { SYSTEM_PROMPT } from './parser-prompt.js';
 import fs from 'fs';
 import path from 'path';
 
-export const PARSER_VERSION = '2.2.0-partial';
+export const PARSER_VERSION = '2.3.0-emergency';
 // 2.0-flash has limit:0 on free tier; use 2.5-flash-lite (free) or override via GEMINI_MODEL
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite';
 
@@ -12,8 +12,8 @@ export { SYSTEM_PROMPT };
 
 function userPrompt(caption) {
   return caption
-    ? `Facebook caption:\n${caption}\n\nExtract all outage schedules from this ISECO notice image.`
-    : 'Extract all outage schedules from this ISECO notice image.';
+    ? `Facebook caption:\n${caption}\n\nExtract all scheduled or emergency power outages from this ISECO post (image and/or caption).`
+    : 'Extract all scheduled or emergency power outages from this ISECO post.';
 }
 
 /**
@@ -115,9 +115,20 @@ function validateOutages(data) {
   }
 
   for (const o of data.outages) {
-    if (!o.outage_date || !o.start_time || !o.end_time) {
+    if (!o.outage_date || !o.start_time) {
       throw new Error(`Outage missing required date/time fields: ${JSON.stringify(o)}`);
     }
+
+    if (o.outage_type === 'emergency' || o.end_time == null || o.end_time === '') {
+      o.outage_type = 'emergency';
+      o.end_time = null;
+    } else {
+      o.outage_type = 'scheduled';
+      if (!o.end_time) {
+        throw new Error(`Scheduled outage missing end_time: ${JSON.stringify(o)}`);
+      }
+    }
+
     if (!Array.isArray(o.areas)) o.areas = [];
     if (!Array.isArray(o.partial_areas)) o.partial_areas = [];
     if (!Array.isArray(o.areas_raw)) o.areas_raw = o.areas;
@@ -133,6 +144,7 @@ export function buildDedupKey({
   outageDate,
   startTime,
   endTime,
+  outageType = 'scheduled',
   areas,
   partial_areas = [],
   district = null,
@@ -142,5 +154,7 @@ export function buildDedupKey({
   const partialHash = [...partial_areas].sort().join('|').toLowerCase();
   const exclHash = [...exclusions].sort().join('|').toLowerCase();
   const districtPart = district ? `d:${district}` : '';
-  return `${sourcePostId}:${imageIndex}:${outageDate}:${startTime}:${endTime}:${districtPart}:${areasHash}:p:${partialHash}:${exclHash}`;
+  const typePart = outageType === 'emergency' ? 'emergency' : 'scheduled';
+  const endPart = endTime ?? 'ongoing';
+  return `${sourcePostId}:${imageIndex}:${typePart}:${outageDate}:${startTime}:${endPart}:${districtPart}:${areasHash}:p:${partialHash}:${exclHash}`;
 }

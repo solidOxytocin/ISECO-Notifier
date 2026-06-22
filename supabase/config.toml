@@ -1,5 +1,4 @@
-[project]
-id = "iseco-notifier"
+project_id = "iseco-notifier"
 
 [api]
 enabled = true

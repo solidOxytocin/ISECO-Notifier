@@ -102,7 +102,12 @@ class _OutageCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.bolt, color: theme.colorScheme.error),
+                Icon(
+                  outage.isEmergency ? Icons.warning_amber : Icons.bolt,
+                  color: outage.isEmergency
+                      ? Colors.orange.shade800
+                      : theme.colorScheme.error,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -111,6 +116,17 @@ class _OutageCard extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),
+                if (outage.isEmergency)
+                  Chip(
+                    label: const Text('Emergency'),
+                    backgroundColor: Colors.orange.shade100,
+                    labelStyle: TextStyle(
+                      color: Colors.orange.shade900,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 if (affectsYou)
                   Chip(
                     label: Text(partialOnly ? 'Some parts' : 'Affects you'),
@@ -129,8 +145,13 @@ class _OutageCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${_formatTime(outage.startTime)} – ${_formatTime(outage.endTime)}',
-              style: theme.textTheme.bodyLarge,
+              outage.isEmergency
+                  ? 'As of ${_formatTime(outage.startTime)} — ongoing'
+                  : '${_formatTime(outage.startTime)} – ${_formatTime(outage.endTime!)}',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight:
+                    outage.isEmergency ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
             if (outage.district != null) ...[
               const SizedBox(height: 8),
@@ -202,7 +223,12 @@ class _OutageCard extends StatelessWidget {
             ],
             if (outage.purpose != null && outage.purpose!.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text(outage.purpose!, style: theme.textTheme.bodyMedium),
+              Text(
+                outage.isEmergency
+                    ? 'Reason: ${outage.purpose!}'
+                    : outage.purpose!,
+                style: theme.textTheme.bodyMedium,
+              ),
             ],
           ],
         ),
@@ -235,7 +261,7 @@ class _EmptyView extends StatelessWidget {
           Icon(Icons.check_circle_outline,
               size: 64, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 16),
-          const Text('No outages scheduled', style: TextStyle(fontSize: 18)),
+          const Text('No active outages', style: TextStyle(fontSize: 18)),
           const SizedBox(height: 8),
           const Text('Pull down to refresh'),
           const SizedBox(height: 24),

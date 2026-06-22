@@ -31,3 +31,12 @@ Thumbs.db
 # Supabase
 supabase/.branches
 supabase/.temp
+
+
+#Firebase
+iseco-notifier-f4906-firebase-adminsdk-fbsvc-aed3e9d323.json
+service-account.json
+google-services.json
+
+# TODO
+TODO.md
