@@ -96,7 +96,7 @@ List<String> getAffectedLocations({
   final locations = <String>{};
 
   if (district == '1st' || district == '2nd') {
-    for (final muni in municipalitiesForDistrict(district)) {
+    for (final muni in municipalitiesForDistrict(district!)) {
       if (!municipalityIsExcluded(muni, exclusions)) {
         locations.add(muni);
       }

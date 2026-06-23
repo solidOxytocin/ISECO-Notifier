@@ -16,6 +16,6 @@ Then:
 
 ## Firebase Android checklist
 
-- Package name: `com.iseco.iseco_notifier`
+- Package name: `com.solidOxytocin.iseco_notifier`
 - Enable Cloud Messaging
 - Subscribe to topic `iseco_outages` happens automatically on app start
