@@ -42,6 +42,21 @@ Deno.test("does not skip emergency power interruption captions", () => {
   assertEquals(result.skip, false);
 });
 
+Deno.test("does not skip cancellation captions", () => {
+  assertEquals(
+    shouldSkipNonOutagePost(
+      "Scheduled Power Interruption by NGCP on June 3, 2026, affecting the whole 1st District of Ilocos Sur is cancelled.",
+    ).skip,
+    false,
+  );
+  assertEquals(
+    shouldSkipNonOutagePost(
+      "Please be informed that the scheduled Power Interruption today was CANCELLED due to our current weather condition.",
+    ).skip,
+    false,
+  );
+});
+
 Deno.test("outage signal overrides billing keywords in same caption", () => {
   const result = shouldSkipNonOutagePost(
     "Scheduled Power Interruption — bill payments may be delayed at affected offices.",

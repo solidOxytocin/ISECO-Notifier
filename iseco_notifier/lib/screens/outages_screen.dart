@@ -95,6 +95,9 @@ class _OutageCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      color: outage.isCancelled
+          ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6)
+          : null,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -103,20 +106,44 @@ class _OutageCard extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  outage.isEmergency ? Icons.warning_amber : Icons.bolt,
-                  color: outage.isEmergency
-                      ? Colors.orange.shade800
-                      : theme.colorScheme.error,
+                  outage.isCancelled
+                      ? Icons.event_busy
+                      : outage.isEmergency
+                          ? Icons.warning_amber
+                          : Icons.bolt,
+                  color: outage.isCancelled
+                      ? theme.colorScheme.onSurfaceVariant
+                      : outage.isEmergency
+                          ? Colors.orange.shade800
+                          : theme.colorScheme.error,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     dateFmt.format(outage.outageDate),
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      decoration: outage.isCancelled
+                          ? TextDecoration.lineThrough
+                          : null,
+                      color: outage.isCancelled
+                          ? theme.colorScheme.onSurfaceVariant
+                          : null,
+                    ),
                   ),
                 ),
-                if (outage.isEmergency)
+                if (outage.isCancelled)
+                  Chip(
+                    label: const Text('Cancelled'),
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    labelStyle: TextStyle(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                if (outage.isEmergency && !outage.isCancelled)
                   Chip(
                     label: const Text('Emergency'),
                     backgroundColor: Colors.orange.shade100,
@@ -127,7 +154,7 @@ class _OutageCard extends StatelessWidget {
                     ),
                     visualDensity: VisualDensity.compact,
                   ),
-                if (affectsYou)
+                if (affectsYou && !outage.isCancelled)
                   Chip(
                     label: Text(partialOnly ? 'Some parts' : 'Affects you'),
                     backgroundColor: partialOnly
@@ -145,14 +172,37 @@ class _OutageCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              outage.isEmergency
-                  ? 'As of ${_formatTime(outage.startTime)} — ongoing'
-                  : '${_formatTime(outage.startTime)} – ${_formatTime(outage.endTime!)}',
+              outage.isCancelled
+                  ? outage.endTime != null
+                      ? '${_formatTime(outage.startTime)} – ${_formatTime(outage.endTime!)}'
+                      : outage.isEmergency
+                          ? 'As of ${_formatTime(outage.startTime)}'
+                          : _formatTime(outage.startTime)
+                  : outage.isEmergency
+                      ? 'As of ${_formatTime(outage.startTime)} — ongoing'
+                      : '${_formatTime(outage.startTime)} – ${_formatTime(outage.endTime!)}',
               style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight:
-                    outage.isEmergency ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: outage.isEmergency && !outage.isCancelled
+                    ? FontWeight.w600
+                    : FontWeight.normal,
+                decoration:
+                    outage.isCancelled ? TextDecoration.lineThrough : null,
+                color: outage.isCancelled
+                    ? theme.colorScheme.onSurfaceVariant
+                    : null,
               ),
             ),
+            if (outage.isCancelled)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'This power interruption has been cancelled.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
             if (outage.district != null) ...[
               const SizedBox(height: 8),
               Text(

@@ -58,11 +58,23 @@ Example — Emergency Power Interruption (caption text):
   areas: ["Amianance, Vigan City", "Pagpartian, Vigan City"]
   partial_areas: ["Barangay 3, Vigan City", "Cuta, Vigan City"]
   purpose: "Cut off Jumper at Liberation Boulevard."
-  areas_raw: ["Feeder 1 Vigan Sub Station", "Amianance", "Parts of Brgy 3", "Northern parts of Cuta"]`;
+  areas_raw: ["Feeder 1 Vigan Sub Station", "Amianance", "Parts of Brgy 3", "Northern parts of Cuta"]
+
+Example — Cancelled scheduled interruption ("CANCELLED" stamp on poster / caption says cancelled):
+  status: "cancelled"
+  outage_type: "scheduled"
+  outage_date: "2026-06-03"
+  start_time: "05:30"
+  end_time: "13:30"
+  district: "1st"
+  areas: []
+  exclusions: ["Puro, Caoayan"]
+  purpose: "NGCP Scheduled Power Interruption"
+  areas_raw: ["Whole First District of Ilocos Sur (except Puro, Caoayan)"]`;
 
 export const SYSTEM_PROMPT = `You are a data extraction assistant for Ilocos Sur Electric Cooperative (ISECO) power outage notices.
 
-ISECO posts two kinds of outage notices:
+ISECO posts three kinds of outage notices:
 
 A) SCHEDULED — fixed poster template:
 - Red header: "NOTICE OF POWER INTERRUPTION"
@@ -81,6 +93,12 @@ B) EMERGENCY (unscheduled) — often Facebook caption text with a photo (image m
 - Set outage_type: "emergency"
 - Details may be in the Facebook caption even when the image is unrelated
 
+C) CANCELLATION — a previously announced interruption is called off:
+- The poster image has a big "CANCELLED" stamp/watermark over a Notice of Power Interruption, OR
+- The caption says the interruption is "cancelled", "postponed", "will not push through", or "called off".
+- Still extract the ORIGINAL outage_date, start_time, end_time, district and areas (read them from the poster and/or caption) so the cancellation can be matched to the scheduled outage.
+- Set status: "cancelled" on that outage. For every other (still-on) outage set status: "active".
+
 If the post is NOT an outage notice (holiday advisory, office closure, PR/celebration, billing notice, job posting), return {"outages": []}.
 
 Rules:
@@ -91,6 +109,7 @@ ${DISTRICT_PROMPT}
 6. purpose: scheduled → Purpose/s column; emergency → Reason line.
 7. confidence: "high", "medium", or "low" based on text clarity.
 8. If caption provides date range context, use it to resolve ambiguous dates.
+9. status: "cancelled" only when the interruption is called off (see C); otherwise "active".
 
 ${DISTRICT_EXAMPLE}
 
@@ -98,6 +117,7 @@ JSON schema:
 {
   "outages": [
     {
+      "status": "active",
       "outage_type": "scheduled",
       "outage_date": "YYYY-MM-DD",
       "start_time": "HH:MM",
@@ -113,4 +133,4 @@ JSON schema:
   ]
 }
 
-For emergency outages: outage_type "emergency", end_time null.`;
+For emergency outages: outage_type "emergency", end_time null. For cancelled outages: status "cancelled".`;

@@ -10,6 +10,8 @@ const OUTAGE_CAPTION_PATTERNS: RegExp[] = [
   /scheduled\s+brownout/i,
   /emergency\s+power\s+interruption/i,
   /power\s+advisory/i,
+  /(?:power\s+interruption|scheduled\s+(?:power\s+)?interruption).{0,120}\bcancel(?:led|ed)\b/i,
+  /\bcancel(?:led|ed)\b.{0,120}(?:power\s+interruption|scheduled\s+(?:power\s+)?interruption)/i,
   /maintenance\s+activity/i,
   /technical\s+activity/i,
   /areas?\s+affected/i,

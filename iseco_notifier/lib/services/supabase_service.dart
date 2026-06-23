@@ -21,6 +21,9 @@ class SupabaseService {
         .toList();
 
     outages.sort((a, b) {
+      if (a.isCancelled != b.isCancelled) {
+        return a.isCancelled ? 1 : -1;
+      }
       if (a.isEmergency != b.isEmergency) {
         return a.isEmergency ? -1 : 1;
       }

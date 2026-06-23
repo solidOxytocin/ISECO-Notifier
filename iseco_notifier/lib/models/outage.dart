@@ -2,9 +2,12 @@ import '../data/ilocos_sur_districts.dart';
 
 enum OutageType { scheduled, emergency }
 
+enum OutageStatus { active, cancelled }
+
 class Outage {
   final String id;
   final DateTime createdAt;
+  final OutageStatus status;
   final OutageType outageType;
   final DateTime outageDate;
   final String startTime;
@@ -15,10 +18,12 @@ class Outage {
   final List<String> exclusions;
   final String? purpose;
   final String confidence;
+  final DateTime? cancelledAt;
 
   const Outage({
     required this.id,
     required this.createdAt,
+    this.status = OutageStatus.active,
     this.outageType = OutageType.scheduled,
     required this.outageDate,
     required this.startTime,
@@ -29,14 +34,18 @@ class Outage {
     this.exclusions = const [],
     this.purpose,
     this.confidence = 'medium',
+    this.cancelledAt,
   });
 
   bool get isEmergency => outageType == OutageType.emergency;
+  bool get isCancelled => status == OutageStatus.cancelled;
+  bool get isActive => status == OutageStatus.active;
 
   factory Outage.fromJson(Map<String, dynamic> json) {
     return Outage(
       id: json['id'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
+      status: _parseOutageStatus(json['status'] as String?),
       outageType: _parseOutageType(json['outage_type'] as String?),
       outageDate: DateTime.parse(json['outage_date'] as String),
       startTime: _formatTime(json['start_time']),
@@ -47,11 +56,18 @@ class Outage {
       exclusions: List<String>.from(json['exclusions'] as List? ?? []),
       purpose: json['purpose'] as String?,
       confidence: json['confidence'] as String? ?? 'medium',
+      cancelledAt: json['cancelled_at'] != null
+          ? DateTime.parse(json['cancelled_at'] as String)
+          : null,
     );
   }
 
   static OutageType _parseOutageType(String? value) {
     return value == 'emergency' ? OutageType.emergency : OutageType.scheduled;
+  }
+
+  static OutageStatus _parseOutageStatus(String? value) {
+    return value == 'cancelled' ? OutageStatus.cancelled : OutageStatus.active;
   }
 
   static String _formatTime(dynamic value) {

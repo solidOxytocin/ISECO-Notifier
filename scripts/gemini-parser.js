@@ -4,7 +4,7 @@ import { SYSTEM_PROMPT } from './parser-prompt.js';
 import fs from 'fs';
 import path from 'path';
 
-export const PARSER_VERSION = '2.3.0-emergency';
+export const PARSER_VERSION = '2.4.0-cancelled';
 // 2.0-flash has limit:0 on free tier; use 2.5-flash-lite (free) or override via GEMINI_MODEL
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite';
 
@@ -12,8 +12,8 @@ export { SYSTEM_PROMPT };
 
 function userPrompt(caption) {
   return caption
-    ? `Facebook caption:\n${caption}\n\nExtract all scheduled or emergency power outages from this ISECO post (image and/or caption).`
-    : 'Extract all scheduled or emergency power outages from this ISECO post.';
+    ? `Facebook caption:\n${caption}\n\nExtract all scheduled, emergency, or cancelled power outages from this ISECO post (image and/or caption). For cancellations, still extract the original date, time, and affected areas from the poster or caption.`
+    : 'Extract all scheduled, emergency, or cancelled power outages from this ISECO post.';
 }
 
 /**
@@ -119,14 +119,20 @@ function validateOutages(data) {
       throw new Error(`Outage missing required date/time fields: ${JSON.stringify(o)}`);
     }
 
-    if (o.outage_type === 'emergency' || o.end_time == null || o.end_time === '') {
-      o.outage_type = 'emergency';
+    o.status = o.status === 'cancelled' ? 'cancelled' : 'active';
+
+    const noEnd = o.end_time == null || o.end_time === '';
+    if (o.outage_type === 'emergency') {
+      o.end_time = null;
+    } else if (noEnd) {
+      if (o.status === 'cancelled') {
+        o.outage_type = 'scheduled';
+      } else {
+        o.outage_type = 'emergency';
+      }
       o.end_time = null;
     } else {
       o.outage_type = 'scheduled';
-      if (!o.end_time) {
-        throw new Error(`Scheduled outage missing end_time: ${JSON.stringify(o)}`);
-      }
     }
 
     if (!Array.isArray(o.areas)) o.areas = [];
@@ -145,6 +151,7 @@ export function buildDedupKey({
   startTime,
   endTime,
   outageType = 'scheduled',
+  status = 'active',
   areas,
   partial_areas = [],
   district = null,
@@ -155,6 +162,7 @@ export function buildDedupKey({
   const exclHash = [...exclusions].sort().join('|').toLowerCase();
   const districtPart = district ? `d:${district}` : '';
   const typePart = outageType === 'emergency' ? 'emergency' : 'scheduled';
+  const statusPart = status === 'cancelled' ? 'cancelled' : 'active';
   const endPart = endTime ?? 'ongoing';
-  return `${sourcePostId}:${imageIndex}:${typePart}:${outageDate}:${startTime}:${endPart}:${districtPart}:${areasHash}:p:${partialHash}:${exclHash}`;
+  return `${sourcePostId}:${imageIndex}:${typePart}:${statusPart}:${outageDate}:${startTime}:${endPart}:${districtPart}:${areasHash}:p:${partialHash}:${exclHash}`;
 }

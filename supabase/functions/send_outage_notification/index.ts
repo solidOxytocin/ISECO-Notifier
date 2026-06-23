@@ -53,6 +53,7 @@ function fcmEndpoint(): string {
 
 interface OutagePayload {
   outage_id?: string;
+  status?: "active" | "cancelled";
   outage_type?: "scheduled" | "emergency";
   outage_date: string;
   start_time: string;
@@ -208,8 +209,10 @@ Deno.serve(async (req) => {
   try {
     const outage: OutagePayload = await req.json();
 
-    // Never broadcast an outage that has already ended.
-    if (isOutagePassed(outage)) {
+    const isCancelled = outage.status === "cancelled";
+
+    // Never broadcast an active outage that has already ended.
+    if (!isCancelled && isOutagePassed(outage)) {
       return new Response(
         JSON.stringify({ ok: true, skipped: true, reason: "outage_passed" }),
         { headers: { "Content-Type": "application/json" } },
@@ -220,19 +223,29 @@ Deno.serve(async (req) => {
     const partialPreview = (outage.partial_areas ?? []).slice(0, 1).join(", ");
     const more = (outage.areas?.length ?? 0) > 2 ? "..." : "";
     const partialNote = partialPreview ? " (some parts)" : "";
+    const districtNote = !areasPreview && outage.district
+      ? `${outage.district === "1st" ? "1st" : "2nd"} District`
+      : areasPreview;
 
     const isEmergency = outage.outage_type === "emergency";
 
-    const title = isEmergency
-      ? "ISECO Emergency Outage"
-      : "ISECO Power Interruption";
-
+    let title: string;
     let body: string;
-    if (isEmergency) {
+
+    if (isCancelled) {
+      title = "ISECO Outage Cancelled";
+      const timePart = outage.end_time
+        ? `${formatTime(outage.start_time)}–${formatTime(outage.end_time)}`
+        : formatTime(outage.start_time);
+      body =
+        `The ${isEmergency ? "emergency" : "scheduled"} power interruption on ${formatDate(outage.outage_date)} ${timePart} for ${districtNote}${more} has been cancelled.`;
+    } else if (isEmergency) {
+      title = "ISECO Emergency Outage";
       const reason = outage.purpose ? ` — ${outage.purpose}` : "";
       body =
         `${formatDate(outage.outage_date)} as of ${formatTime(outage.start_time)} — ${areasPreview}${more}${partialNote}${reason}`;
     } else {
+      title = "ISECO Power Interruption";
       body =
         `${formatDate(outage.outage_date)} ${formatTime(outage.start_time)}–${formatTime(outage.end_time!)} — ${areasPreview}${more}${partialNote}`;
     }
@@ -241,6 +254,7 @@ Deno.serve(async (req) => {
       outage_id: outage.outage_id ?? "",
       outage_date: outage.outage_date,
       outage_type: outage.outage_type ?? "scheduled",
+      status: outage.status ?? "active",
       click_action: "FLUTTER_NOTIFICATION_CLICK",
     };
 

@@ -1,13 +1,13 @@
 import { normalizeOutages } from "./normalize.ts";
 import type { DistrictId } from "./ilocos-sur-districts.ts";
 
-export const PARSER_VERSION = "2.3.0-emergency";
+export const PARSER_VERSION = "2.4.0-cancelled";
 // 2.0-flash has limit:0 on free tier; use 2.5-flash-lite (free) or override via GEMINI_MODEL
 export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
 
 export const SYSTEM_PROMPT = `You are a data extraction assistant for Ilocos Sur Electric Cooperative (ISECO) power outage notices.
 
-ISECO posts two kinds of outage notices:
+ISECO posts three kinds of outage notices:
 
 A) SCHEDULED — fixed poster template:
 - Red header: "NOTICE OF POWER INTERRUPTION"
@@ -25,6 +25,12 @@ B) EMERGENCY (unscheduled) — often Facebook caption text with a photo (image m
 - Feeder/substation headers (e.g. "Feeder 1 Vigan Sub Station") are HEADERS — do NOT put in areas
 - Set outage_type: "emergency"
 - Details may be in the Facebook caption even when the image is unrelated
+
+C) CANCELLATION — a previously announced interruption is called off:
+- The poster image has a big "CANCELLED" stamp/watermark over a Notice of Power Interruption, OR
+- The caption says the interruption is "cancelled", "postponed", "will not push through", or "called off".
+- Still extract the ORIGINAL outage_date, start_time, end_time, district and areas (read them from the poster and/or caption) so the cancellation can be matched to the scheduled outage.
+- Set status: "cancelled" on that outage. For every other (still-on) outage set status: "active".
 
 If the post is NOT an outage notice (holiday advisory, office closure, PR/celebration, billing notice, job posting), return {"outages": []}.
 
@@ -49,6 +55,7 @@ Rules:
 6. purpose: scheduled → Purpose/s column; emergency → Reason line.
 7. confidence: "high", "medium", or "low" based on text clarity.
 8. If caption provides date range context, use it to resolve ambiguous dates.
+9. status: "cancelled" only when the interruption is called off (see C); otherwise "active".
 
 Example — Whole 1st District EXCEPT + specific area:
   outage_type: "scheduled"
@@ -93,10 +100,23 @@ Example — Emergency Power Interruption (caption text):
   purpose: "Cut off Jumper at Liberation Boulevard."
   areas_raw: ["Feeder 1 Vigan Sub Station", "Amianance", "Parts of Brgy 3", "Northern parts of Cuta"]
 
+Example — Cancelled scheduled interruption ("CANCELLED" stamp on poster / caption says cancelled):
+  status: "cancelled"
+  outage_type: "scheduled"
+  outage_date: "2026-06-03"
+  start_time: "05:30"
+  end_time: "13:30"
+  district: "1st"
+  areas: []
+  exclusions: ["Puro, Caoayan"]
+  purpose: "NGCP Scheduled Power Interruption"
+  areas_raw: ["Whole First District of Ilocos Sur (except Puro, Caoayan)"]
+
 JSON schema:
 {
   "outages": [
     {
+      "status": "active",
       "outage_type": "scheduled",
       "outage_date": "YYYY-MM-DD",
       "start_time": "HH:MM",
@@ -112,11 +132,13 @@ JSON schema:
   ]
 }
 
-For emergency outages: outage_type "emergency", end_time null.`;
+For emergency outages: outage_type "emergency", end_time null. For cancelled outages: status "cancelled".`;
 
 export type OutageType = "scheduled" | "emergency";
+export type OutageStatus = "active" | "cancelled";
 
 export interface ParsedOutage {
+  status: OutageStatus;
   outage_type: OutageType;
   outage_date: string;
   start_time: string;
@@ -137,6 +159,7 @@ export function buildDedupKey(params: {
   startTime: string;
   endTime: string | null;
   outageType?: OutageType;
+  status?: OutageStatus;
   areas: string[];
   partial_areas?: string[];
   district?: DistrictId | null;
@@ -147,14 +170,15 @@ export function buildDedupKey(params: {
   const exclHash = [...(params.exclusions ?? [])].sort().join("|").toLowerCase();
   const districtPart = params.district ? `d:${params.district}` : "";
   const typePart = params.outageType === "emergency" ? "emergency" : "scheduled";
+  const statusPart = params.status === "cancelled" ? "cancelled" : "active";
   const endPart = params.endTime ?? "ongoing";
-  return `${params.sourcePostId}:${params.imageIndex}:${typePart}:${params.outageDate}:${params.startTime}:${endPart}:${districtPart}:${areasHash}:p:${partialHash}:${exclHash}`;
+  return `${params.sourcePostId}:${params.imageIndex}:${typePart}:${statusPart}:${params.outageDate}:${params.startTime}:${endPart}:${districtPart}:${areasHash}:p:${partialHash}:${exclHash}`;
 }
 
 function userPrompt(caption: string): string {
   return caption
-    ? `Facebook caption:\n${caption}\n\nExtract all scheduled or emergency power outages from this ISECO post (image and/or caption).`
-    : "Extract all scheduled or emergency power outages from this ISECO post.";
+    ? `Facebook caption:\n${caption}\n\nExtract all scheduled, emergency, or cancelled power outages from this ISECO post (image and/or caption). For cancellations, still extract the original date, time, and affected areas from the poster or caption.`
+    : "Extract all scheduled, emergency, or cancelled power outages from this ISECO post.";
 }
 
 function parseJsonResponse(text: string): { outages: ParsedOutage[] } {
@@ -174,14 +198,22 @@ function validateOutages(data: { outages: ParsedOutage[] }) {
       throw new Error(`Outage missing required date/time: ${JSON.stringify(o)}`);
     }
 
-    if (o.outage_type === "emergency" || o.end_time == null || o.end_time === "") {
-      o.outage_type = "emergency";
+    o.status = o.status === "cancelled" ? "cancelled" : "active";
+
+    const noEnd = o.end_time == null || o.end_time === "";
+    if (o.outage_type === "emergency") {
+      o.end_time = null;
+    } else if (noEnd) {
+      // A cancellation may omit the end time but is still a (cancelled) scheduled
+      // outage. An active outage with no end time is treated as emergency.
+      if (o.status === "cancelled") {
+        o.outage_type = "scheduled";
+      } else {
+        o.outage_type = "emergency";
+      }
       o.end_time = null;
     } else {
       o.outage_type = "scheduled";
-      if (!o.end_time) {
-        throw new Error(`Scheduled outage missing end_time: ${JSON.stringify(o)}`);
-      }
     }
 
     o.areas = o.areas ?? [];

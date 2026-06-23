@@ -7,6 +7,7 @@ import {
   TransientGeminiError,
 } from "../_shared/parser.ts";
 import { shouldSkipNonOutagePost } from "../_shared/post_filter.ts";
+import { outageMatchesStored } from "../_shared/outage_match.ts";
 import { parseRssFeed, type RssItem } from "../_shared/rss.ts";
 import { fetchApifyPosts } from "../_shared/apify.ts";
 import { isOutagePassed } from "../_shared/outage_time.ts";
@@ -119,6 +120,7 @@ Deno.serve(async (req) => {
       new_posts: 0,
       skipped_posts: 0,
       outages_inserted: 0,
+      outages_cancelled: 0,
       outages_skipped_past: 0,
       gemini_calls: 0,
       stopped_early: false,
@@ -133,7 +135,111 @@ Deno.serve(async (req) => {
       imageIndex: number,
     ) => {
       for (const outage of outages) {
-        // Skip outages that have already ended — no point storing or notifying.
+        if (outage.status === "cancelled") {
+          const { data: candidates } = await supabase
+            .from("outages")
+            .select("*")
+            .eq("outage_date", outage.outage_date)
+            .eq("status", "active");
+
+          const match = (candidates ?? []).find((row) =>
+            outageMatchesStored(
+              {
+                outage_date: row.outage_date,
+                start_time: row.start_time,
+                end_time: row.end_time,
+                outage_type: row.outage_type,
+                district: row.district,
+                areas: row.areas ?? [],
+                partial_areas: row.partial_areas ?? [],
+                exclusions: row.exclusions ?? [],
+              },
+              outage,
+            )
+          );
+
+          if (match) {
+            const { data: updated, error: updateErr } = await supabase
+              .from("outages")
+              .update({
+                status: "cancelled",
+                cancelled_at: new Date().toISOString(),
+                cancellation_source_post_id: item.sourcePostId,
+              })
+              .eq("id", match.id)
+              .select()
+              .single();
+
+            if (updateErr) throw updateErr;
+
+            results.outages_cancelled++;
+            if (updated) {
+              await sendFcmForNewOutage({
+                ...updated,
+                use_barangay_filter:
+                  Deno.env.get("USE_BARANGAY_FILTER") === "true",
+              });
+            }
+            continue;
+          }
+
+          const dedupKey = buildDedupKey({
+            sourcePostId: item.sourcePostId,
+            imageIndex,
+            outageDate: outage.outage_date,
+            startTime: outage.start_time,
+            endTime: outage.end_time,
+            outageType: outage.outage_type,
+            status: "cancelled",
+            areas: outage.areas,
+            partial_areas: outage.partial_areas,
+            district: outage.district,
+            exclusions: outage.exclusions,
+          });
+
+          const { data: inserted, error: insertErr } = await supabase
+            .from("outages")
+            .insert({
+              status: "cancelled",
+              outage_type: outage.outage_type,
+              outage_date: outage.outage_date,
+              start_time: outage.start_time,
+              end_time: outage.end_time,
+              district: outage.district,
+              areas: outage.areas,
+              partial_areas: outage.partial_areas,
+              areas_raw: outage.areas_raw,
+              exclusions: outage.exclusions,
+              purpose: outage.purpose,
+              source_post_id: item.sourcePostId,
+              image_index: imageIndex,
+              dedup_key: dedupKey,
+              confidence: outage.confidence,
+              parser_version: PARSER_VERSION,
+              raw_caption: item.caption,
+              cancelled_at: new Date().toISOString(),
+              cancellation_source_post_id: item.sourcePostId,
+            })
+            .select()
+            .single();
+
+          if (insertErr) {
+            if (insertErr.code === "23505") continue;
+            throw insertErr;
+          }
+
+          results.outages_cancelled++;
+          if (inserted) {
+            await sendFcmForNewOutage({
+              ...inserted,
+              use_barangay_filter:
+                Deno.env.get("USE_BARANGAY_FILTER") === "true",
+            });
+          }
+          continue;
+        }
+
+        // Skip active outages that have already ended — no point storing or notifying.
         if (isOutagePassed(outage)) {
           results.outages_skipped_past++;
           continue;
@@ -146,6 +252,7 @@ Deno.serve(async (req) => {
           startTime: outage.start_time,
           endTime: outage.end_time,
           outageType: outage.outage_type,
+          status: "active",
           areas: outage.areas,
           partial_areas: outage.partial_areas,
           district: outage.district,
@@ -155,6 +262,7 @@ Deno.serve(async (req) => {
         const { data: inserted, error: insertErr } = await supabase
           .from("outages")
           .insert({
+            status: "active",
             outage_type: outage.outage_type,
             outage_date: outage.outage_date,
             start_time: outage.start_time,

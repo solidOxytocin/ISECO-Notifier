@@ -131,5 +131,23 @@ void main() {
       expect(outage.endTime, isNull);
       expect(outage.affectsBarangay('Amianance, Vigan City'), true);
     });
+
+    test('cancelled outage is marked cancelled', () {
+      final outage = Outage(
+        id: '9',
+        createdAt: DateTime.now(),
+        status: OutageStatus.cancelled,
+        outageDate: DateTime(2026, 6, 3),
+        startTime: '05:30',
+        endTime: '13:30',
+        district: '1st',
+        areas: [],
+        exclusions: ['Puro, Caoayan'],
+        cancelledAt: DateTime(2026, 6, 3, 10),
+      );
+
+      expect(outage.isCancelled, true);
+      expect(outage.isActive, false);
+    });
   });
 }
