@@ -12,7 +12,7 @@ class FcmService {
   final SupabaseService _supabase;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
-  Future<String?> initialize({List<String> barangays = const []}) async {
+  Future<String?> initialize() async {
     await _messaging.requestPermission(
       alert: true,
       badge: true,
@@ -24,10 +24,11 @@ class FcmService {
 
     final token = await _messaging.getToken();
     if (token != null) {
+      // Register the token only; barangays are owned by the Settings save flow
+      // and must not be overwritten here (would wipe saved preferences).
       await _supabase.registerDevice(
         fcmToken: token,
         platform: Platform.isAndroid ? 'android' : 'ios',
-        barangays: barangays,
       );
     }
 
@@ -35,7 +36,6 @@ class FcmService {
       await _supabase.registerDevice(
         fcmToken: newToken,
         platform: Platform.isAndroid ? 'android' : 'ios',
-        barangays: barangays,
       );
     });
 

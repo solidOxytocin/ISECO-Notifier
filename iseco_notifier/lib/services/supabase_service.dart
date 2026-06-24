@@ -35,17 +35,24 @@ class SupabaseService {
     return outages;
   }
 
+  /// Upserts the device row. When [barangays] is null the column is left
+  /// untouched so token registration (e.g. on every launch / token refresh)
+  /// never clobbers the user's saved area preferences — only an explicit
+  /// Settings save passes a non-null list.
   Future<void> registerDevice({
     required String fcmToken,
     required String platform,
-    List<String> barangays = const [],
+    List<String>? barangays,
   }) async {
-    await _client.from('devices').upsert({
+    final payload = <String, dynamic>{
       'fcm_token': fcmToken,
       'platform': platform,
-      'barangays': barangays,
       'updated_at': DateTime.now().toIso8601String(),
-    }, onConflict: 'fcm_token');
+    };
+    if (barangays != null) {
+      payload['barangays'] = barangays;
+    }
+    await _client.from('devices').upsert(payload, onConflict: 'fcm_token');
   }
 
   Future<List<String>> getSavedBarangays(String fcmToken) async {
